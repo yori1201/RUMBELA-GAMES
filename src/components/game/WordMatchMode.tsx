@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react"
-import { motion } from "framer-motion"
-import { Check } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Check, Volume2 } from "lucide-react"
 import {
   getQuestionsByCategory,
   shuffleArray,
@@ -11,6 +11,7 @@ import {
   type Difficulty,
 } from "@/lib/game-data"
 import { soundManager } from "@/lib/sound"
+import { useNaturalTTS } from "@/lib/use-natural-tts"
 import HUD from "./HUD"
 import Mascot from "./Mascot"
 
@@ -78,6 +79,22 @@ export default function WordMatchMode({
   const [matchedPairs, setMatchedPairs] = useState<Set<string>>(new Set())
   const [wrongPair, setWrongPair] = useState<{ en: string; id: string } | null>(null)
   const [correctCount, setCorrectCount] = useState(0)
+  const [comboPopup, setComboPopup] = useState<string | null>(null)
+  const { speak, stop } = useNaturalTTS()
+
+  // Combo popup on streak milestones
+  useEffect(() => {
+    if (streak >= 3 && streak % 3 === 0) {
+      setComboPopup(`🔥 Combo ${streak}x!`)
+      const t = setTimeout(() => setComboPopup(null), 1800)
+      return () => clearTimeout(t)
+    }
+  }, [streak])
+
+  // Cleanup TTS on unmount
+  useEffect(() => {
+    return () => stop()
+  }, [stop])
 
   // Refs to access latest state inside async callbacks without re-running effects.
   // Updated in useEffect (not during render) to comply with react-hooks/refs rule.
@@ -159,6 +176,11 @@ export default function WordMatchMode({
         setSelectedEn(null)
         setSelectedId(null)
 
+        // Speak the English word that was just matched (natural pronunciation)
+        // supaya siswa belajar pronunciation saat match berhasil
+        const matchedWord = currentQuestion.pairs[enItem.originalIdx].en
+        speak(matchedWord, "en", { rate: 0.85, delay: 200 })
+
         // Check if round is complete - schedule advance
         if (currentMatched.size === currentQuestion.pairs.length) {
           const newCorrectCount = correctCount + currentQuestion.pairs.length
@@ -208,7 +230,20 @@ export default function WordMatchMode({
   }
 
   return (
-    <div className="min-h-screen w-full px-4 py-6 sm:px-6">
+    <div className="min-h-screen w-full px-4 py-4 sm:px-6 sm:py-6">
+      {/* Combo popup floating */}
+      <AnimatePresence>
+        {comboPopup && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5, y: -20 }}
+            animate={{ opacity: 1, scale: 1.2, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -40 }}
+            className="pointer-events-none fixed left-1/2 top-1/4 z-50 -translate-x-1/2 text-3xl font-black text-orange-500 drop-shadow-lg sm:text-4xl"
+          >
+            {comboPopup}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="mx-auto max-w-3xl">
         <HUD
           score={score}

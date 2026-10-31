@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Check, X, Lightbulb, ArrowRight } from "lucide-react"
+import { Check, X, Lightbulb, ArrowRight, Volume2 } from "lucide-react"
 import {
   getQuestionsByCategory,
   shuffleArray,
@@ -11,6 +11,7 @@ import {
   type Difficulty,
 } from "@/lib/game-data"
 import { soundManager } from "@/lib/sound"
+import { useNaturalTTS } from "@/lib/use-natural-tts"
 import { Button } from "@/components/ui/button"
 import HUD from "./HUD"
 import Mascot from "./Mascot"
@@ -68,7 +69,23 @@ export default function QuizMode({
   const [showHint, setShowHint] = useState(false)
   const [timeLeft, setTimeLeft] = useState(questionTime)
   const [correctCount, setCorrectCount] = useState(0)
+  const [comboPopup, setComboPopup] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { speak, stop } = useNaturalTTS()
+
+  // Combo popup on streak milestones
+  useEffect(() => {
+    if (streak >= 3 && streak % 3 === 0) {
+      setComboPopup(`🔥 Combo ${streak}x!`)
+      const t = setTimeout(() => setComboPopup(null), 1800)
+      return () => clearTimeout(t)
+    }
+  }, [streak])
+
+  // Cleanup TTS on unmount
+  useEffect(() => {
+    return () => stop()
+  }, [stop])
   const timedOutRef = useRef(false)
 
   const currentQuestion = questions[currentIdx]
@@ -141,11 +158,25 @@ export default function QuizMode({
         return newStreak
       })
       soundManager.play("correct")
+      // Speak the correct answer with natural English pronunciation
+      // so siswa bisa belajar cara mengucapkan jawaban yang benar
+      const correctAnswerText = currentQuestion.options[currentQuestion.answer]
+      speak(correctAnswerText, "en", { rate: 0.85, delay: 500 })
     } else {
       setLives((l) => l - 1)
       setStreak(0)
       soundManager.play("wrong")
+      // Tetap speak jawaban yang benar supaya siswa bisa belajar pronunciation
+      const correctAnswerText = currentQuestion.options[currentQuestion.answer]
+      speak(correctAnswerText, "en", { rate: 0.85, delay: 700 })
     }
+  }
+
+  // Replay correct answer pronunciation
+  const handleReplayAnswer = () => {
+    soundManager.play("click")
+    const correctAnswerText = currentQuestion.options[currentQuestion.answer]
+    speak(correctAnswerText, "en", { rate: 0.85 })
   }
 
   if (!currentQuestion) {
@@ -159,7 +190,20 @@ export default function QuizMode({
   const isGameOver = lives <= 0
 
   return (
-    <div className="min-h-screen w-full px-4 py-6 sm:px-6">
+    <div className="min-h-screen w-full px-4 py-4 sm:px-6 sm:py-6">
+      {/* Combo popup floating */}
+      <AnimatePresence>
+        {comboPopup && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5, y: -20 }}
+            animate={{ opacity: 1, scale: 1.2, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -40 }}
+            className="pointer-events-none fixed left-1/2 top-1/4 z-50 -translate-x-1/2 text-3xl font-black text-orange-500 drop-shadow-lg sm:text-4xl"
+          >
+            {comboPopup}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="mx-auto max-w-3xl">
         <HUD
           score={score}
@@ -284,16 +328,24 @@ export default function QuizMode({
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-4 rounded-xl bg-slate-50 p-4"
                   >
-                    <p className="text-sm text-slate-700">
-                      <span className="font-bold">
-                        {selectedAnswer === currentQuestion.answer
-                          ? "✅ Benar! "
-                          : selectedAnswer === -1
-                          ? "⏰ Waktu habis! "
-                          : "❌ Belum tepat. "}
-                      </span>
-                      {currentQuestion.explanation}
-                    </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="flex-1 text-sm text-slate-700">
+                        <span className="font-bold">
+                          {selectedAnswer === currentQuestion.answer
+                            ? "✅ Benar! "
+                            : selectedAnswer === -1
+                            ? "⏰ Waktu habis! "
+                            : "❌ Belum tepat. "}
+                        </span>
+                        {currentQuestion.explanation}
+                      </p>
+                      <button
+                        onClick={handleReplayAnswer}
+                        className="shrink-0 rounded-full bg-emerald-100 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-200 active:scale-95 transition"
+                      >
+                        <Volume2 className="h-3.5 w-3.5" /> Dengar
+                      </button>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -306,15 +358,14 @@ export default function QuizMode({
                 >
                   <Button
                     onClick={handleNext}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700"
-                    size="lg"
+                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-base font-black shadow-lg hover:from-emerald-600 hover:to-teal-700 active:scale-98 transition"
                   >
                     {isGameOver
                       ? "Lihat Hasil"
                       : currentIdx + 1 >= totalQuestions
                       ? "Selesaikan Game"
                       : "Soal Berikutnya"}
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </motion.div>
               )}

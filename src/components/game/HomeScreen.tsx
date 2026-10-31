@@ -7,7 +7,7 @@ import { CATEGORIES, DIFFICULTIES, ACHIEVEMENTS, type CategoryId, type Difficult
 import { MATH_LEVELS, type MathLevel } from "@/lib/math-data"
 import { useGameStore } from "@/lib/game-store"
 import { soundManager } from "@/lib/sound"
-import { preloadVoices } from "@/lib/use-auto-speak"
+import { preloadVoices } from "@/lib/use-natural-tts"
 import Mascot from "./Mascot"
 import MissionsPanel from "./MissionsPanel"
 import MissionBadge from "./MissionBadge"

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Check, X, Lightbulb, Home, Volume2, VolumeX, RotateCw } from "lucide-react"
+import { Check, X, Lightbulb, Home, Volume2, VolumeX } from "lucide-react"
 import {
   generateMathQuestions,
   MATH_LEVELS,
@@ -10,6 +10,7 @@ import {
   type MathQuestion,
 } from "@/lib/math-data"
 import { soundManager } from "@/lib/sound"
+import { useNaturalTTS } from "@/lib/use-natural-tts"
 import { Button } from "@/components/ui/button"
 import HUD from "./HUD"
 import Mascot from "./Mascot"
@@ -25,93 +26,8 @@ interface MathModeProps {
   onExit: () => void
 }
 
-// ===== TTS Hook (Web Speech API) - Natural Voice =====
-function useTTS() {
-  const speakRef = useRef<((text: string, rate?: number) => void) | null>(null)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    if (!("speechSynthesis" in window)) return
-
-    // Cache: prioritaskan voice natural (bukan default robotic)
-    let preferredVoice: SpeechSynthesisVoice | null = null
-    let voicesLoaded = false
-
-    function pickNaturalVoice() {
-      const voices = window.speechSynthesis.getVoices()
-      if (!voices.length) return
-
-      voicesLoaded = true
-      // Priority order for Indonesian natural voices:
-      // 1. Google Bahasa Indonesia (cloud, paling natural)
-      // 2. Microsoft voice (online, natural)
-      // 3.Damay, Andika, Sari (Windows local)
-      // 4. Female Indonesian voice (biasanya lebih natural)
-      // 5. Fallback: any id-ID voice
-      const idVoices = voices.filter((v) => v.lang === "id-ID" || v.lang.startsWith("id"))
-
-      const priorities = [
-        // Google cloud voice paling natural
-        (v: SpeechSynthesisVoice) => v.name.includes("Google") && v.lang.startsWith("id"),
-        // Microsoft online natural
-        (v: SpeechSynthesisVoice) => v.name.includes("Microsoft") && v.lang.startsWith("id") && v.name.toLowerCase().includes("gadis"),
-        (v: SpeechSynthesisVoice) => v.name.includes("Microsoft") && v.lang.startsWith("id") && v.name.toLowerCase().includes("ardi"),
-        // SAPI5 natural voices (Damay, Andika)
-        (v: SpeechSynthesisVoice) => v.name.includes("Microsoft") && v.lang.startsWith("id"),
-        // Female biasanya lebih natural
-        (v: SpeechSynthesisVoice) => v.lang.startsWith("id") && /female|gadis|sari|damay|ayu/i.test(v.name),
-        // Any Indonesian voice
-        (v: SpeechSynthesisVoice) => v.lang.startsWith("id"),
-      ]
-
-      for (const predicate of priorities) {
-        const found = idVoices.find(predicate)
-        if (found) {
-          preferredVoice = found
-          break
-        }
-      }
-
-      // Last resort: any voice with id
-      if (!preferredVoice && idVoices.length > 0) {
-        preferredVoice = idVoices[0]
-      }
-    }
-
-    pickNaturalVoice()
-
-    // Voice list loads async on some browsers - listen for onvoiceschanged
-    if (!voicesLoaded) {
-      window.speechSynthesis.addEventListener("voiceschanged", pickNaturalVoice)
-    }
-
-    speakRef.current = (text: string, rate = 0.92) => {
-      try {
-        window.speechSynthesis.cancel()
-        const u = new SpeechSynthesisUtterance(text)
-        u.lang = "id-ID"
-        // Slightly slower than default for clarity, but not too slow
-        u.rate = rate
-        // pitch 1.0 = natural (default). Hindari pitch tinggi yang bikin robotic.
-        u.pitch = 1.0
-        u.volume = 1.0
-        // Jangan set pitch tinggi. Use natural voice if available.
-        if (preferredVoice) {
-          u.voice = preferredVoice
-        }
-        window.speechSynthesis.speak(u)
-      } catch (e) {
-        console.warn("TTS error:", e)
-      }
-    }
-
-    return () => {
-      window.speechSynthesis.removeEventListener("voiceschanged", pickNaturalVoice)
-    }
-  }, [])
-
-  return speakRef
-}
+// ===== TTS Hook - pakai reusable useNaturalTTS dengan voice natural =====
+// (Implementasi voice picker ada di src/lib/use-natural-tts.ts)
 
 // Bubble colors (rotation untuk variasi visual)
 const BUBBLE_COLORS = [
@@ -148,8 +64,9 @@ export default function MathMode({ level, onComplete, onExit }: MathModeProps) {
   const [soundOn, setSoundOn] = useState(soundManager.isEnabled())
   const [popBubbles, setPopBubbles] = useState<Set<number>>(new Set())
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const speakRef = useTTS()
+  const { speak, stop } = useNaturalTTS()
   const hasSpokenRef = useRef(false)
+  const [comboPopup, setComboPopup] = useState<string | null>(null)
 
   const currentQuestion = questions[currentIdx]
   const totalQuestions = questions.length
@@ -160,10 +77,24 @@ export default function MathMode({ level, onComplete, onExit }: MathModeProps) {
     hasSpokenRef.current = true
     // Delay sedikit supaya audio context ready
     const t = setTimeout(() => {
-      if (speakRef.current) speakRef.current(currentQuestion.promptSpeech, 0.9)
+      speak(currentQuestion.promptSpeech, "id", { rate: 0.92 })
     }, 400)
     return () => clearTimeout(t)
-  }, [currentQuestion, speakRef])
+  }, [currentQuestion, speak])
+
+  // Combo popup on streak milestones
+  useEffect(() => {
+    if (streak >= 3 && streak % 3 === 0) {
+      setComboPopup(`🔥 Combo ${streak}x!`)
+      const t = setTimeout(() => setComboPopup(null), 1800)
+      return () => clearTimeout(t)
+    }
+  }, [streak])
+
+  // Cleanup TTS on unmount
+  useEffect(() => {
+    return () => stop()
+  }, [stop])
 
   // ===== Timer =====
   useEffect(() => {
@@ -203,10 +134,8 @@ export default function MathMode({ level, onComplete, onExit }: MathModeProps) {
           return ns
         })
         setCorrectCount((c) => c + 1)
-        // Ucapkan jawaban benar
-        if (speakRef.current) {
-          speakRef.current(`Benar! ${currentQuestion.answer}`, 0.95)
-        }
+        // Ucapkan jawaban benar dengan natural voice
+        speak(`Benar! ${currentQuestion.answer}`, "id", { rate: 0.95, delay: 300 })
         // Pop bubble yang benar
         if (currentQuestion.type === "number-recognition") {
           setPopBubbles(new Set([currentQuestion.answer]))
@@ -215,8 +144,8 @@ export default function MathMode({ level, onComplete, onExit }: MathModeProps) {
         soundManager.play("wrong")
         setLives((l) => l - 1)
         setStreak(0)
-        if (speakRef.current && !isTimeout) {
-          speakRef.current(`Salah. Jawaban yang benar adalah ${currentQuestion.answer}`, 0.95)
+        if (!isTimeout) {
+          speak(`Salah. Jawaban yang benar adalah ${currentQuestion.answer}`, "id", { rate: 0.95, delay: 400 })
         }
       }
 
@@ -252,13 +181,13 @@ export default function MathMode({ level, onComplete, onExit }: MathModeProps) {
         hasSpokenRef.current = false
       }, 1800)
     },
-    [showResult, currentQuestion, timeLeft, streak, lives, currentIdx, totalQuestions, score, correctCount, maxStreak, questionTime, onComplete, speakRef]
+    [showResult, currentQuestion, timeLeft, streak, lives, currentIdx, totalQuestions, score, correctCount, maxStreak, questionTime, onComplete, speak]
   )
 
   const handleReplaySound = () => {
-    if (speakRef.current && currentQuestion) {
+    if (currentQuestion) {
       soundManager.play("click")
-      speakRef.current(currentQuestion.promptSpeech, 0.9)
+      speak(currentQuestion.promptSpeech, "id", { rate: 0.92 })
     }
   }
 
@@ -273,28 +202,42 @@ export default function MathMode({ level, onComplete, onExit }: MathModeProps) {
 
   return (
     <div className="min-h-screen w-full px-4 py-4">
-      {/* Top bar */}
+      {/* Combo popup floating */}
+      <AnimatePresence>
+        {comboPopup && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5, y: -20 }}
+            animate={{ opacity: 1, scale: 1.2, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -40 }}
+            className="pointer-events-none fixed left-1/2 top-1/4 z-50 -translate-x-1/2 text-3xl font-black text-orange-500 drop-shadow-lg sm:text-4xl"
+          >
+            {comboPopup}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Top bar - bigger touch target for mobile */}
       <div className="mx-auto mb-4 flex max-w-3xl items-center justify-between gap-2">
         <Button
           variant="outline"
-          size="sm"
           onClick={() => {
             soundManager.play("click")
+            stop()
             onExit()
           }}
-          className="rounded-full"
+          className="h-11 rounded-full px-4 text-sm font-bold"
         >
           <Home className="h-4 w-4" /> Keluar
         </Button>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">
+          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm">
             {levelInfo.icon} {levelInfo.name}
           </span>
           <Button
             variant="outline"
             size="icon"
             onClick={toggleSound}
-            className="h-8 w-8 rounded-full"
+            className="h-11 w-11 rounded-full"
           >
             {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </Button>
