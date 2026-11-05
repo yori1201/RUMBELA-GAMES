@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Check, X, ArrowRight, Volume2, Eye, RotateCw } from "lucide-react"
+import { Check, X, ArrowRight, Volume2, Eye } from "lucide-react"
 import {
   getQuestionsByCategory,
   shuffleArray,

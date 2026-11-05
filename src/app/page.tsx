@@ -123,14 +123,19 @@ function HomeContent() {
   const handleMathComplete = useCallback(
     (res: GameResult) => {
       if (!mathConfig) return
+      // Tech debt: game-store.recordGameResult mengharuskan CategoryId & Difficulty
+      // dari skema Bahasa Inggris. Math dipaksa ke "vocabulary/beginner" supaya masuk
+      // leaderboard, walau tidak akurat. Solusi: extend CategoryId dengan "math" dan
+      // Difficulty dengan level math (TK/SD/SMP). Untuk sekarang, "math" di mode
+      // sudah cukup untuk filter display di UI.
       const { newAchievements, rank, completedMissions, streakIncreased } = recordGameResult(
         res.score,
         res.correct,
         res.total,
-        "vocabulary", // kategori placeholder
-        "beginner",   // difficulty placeholder
+        "vocabulary",
+        "beginner",
         res.maxStreak,
-        "math"        // mode identifier
+        "math"
       )
       setResult(res)
       setResultMeta({ newAchievements, rank, completedMissions, streakIncreased })

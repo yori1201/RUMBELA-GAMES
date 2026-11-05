@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
-import { Trophy, Settings, Volume2, VolumeX, Sparkles, BookOpen, Award, RotateCcw, Flame, Target, Star, TrendingUp, Calculator } from "lucide-react"
+import { Trophy, Volume2, VolumeX, Sparkles, BookOpen, Award, RotateCcw, Flame, Target, Star, TrendingUp } from "lucide-react"
 import { CATEGORIES, DIFFICULTIES, ACHIEVEMENTS, type CategoryId, type Difficulty } from "@/lib/game-data"
 import { MATH_LEVELS, type MathLevel } from "@/lib/math-data"
 import { useGameStore } from "@/lib/game-store"

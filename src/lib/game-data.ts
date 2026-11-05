@@ -806,7 +806,7 @@ export const MATCH_QUESTIONS: MatchQuestion[] = [
     category: "vocabulary",
     difficulty: "advanced",
     pairs: [
-      { en: "Eloquent", id: "Elokuwen / fasih berbicara" },
+      { en: "Eloquent", id: "Fasih berbicara" },
       { en: "Resilient", id: "Tangguh / pantang menyerah" },
       { en: "Meticulous", id: "Teliti / sangat berhati-hati" },
       { en: "Innovative", id: "Inovatif / pemikiran baru" },
@@ -885,8 +885,8 @@ export const MATCH_QUESTIONS: MatchQuestion[] = [
     difficulty: "advanced",
     pairs: [
       { en: "Conditional", id: "Bersyarat (if)" },
-      { en: "Subjunctive", id: "Sangat hipotetis" },
-      { en: "Imperative", id: "Perintah / perintah" },
+      { en: "Subjunctive", id: "Bentuk hipotetis / pengandaian" },
+      { en: "Imperative", id: "Bentuk perintah" },
       { en: "Interrogative", id: "Pertanyaan" },
     ],
     points: 80,

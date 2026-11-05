@@ -31,12 +31,12 @@ interface MathModeProps {
 
 // Bubble colors (rotation untuk variasi visual)
 const BUBBLE_COLORS = [
-  { bg: "from-pink-400 to-rose-500", ring: "ring-pink-300", glow: "shadow-pink-300/50" },
-  { bg: "from-sky-400 to-blue-500", ring: "ring-sky-300", glow: "shadow-sky-300/50" },
-  { bg: "from-emerald-400 to-teal-500", ring: "ring-emerald-300", glow: "shadow-emerald-300/50" },
-  { bg: "from-amber-400 to-orange-500", ring: "ring-amber-300", glow: "shadow-amber-300/50" },
-  { bg: "from-violet-400 to-purple-500", ring: "ring-violet-300", glow: "shadow-violet-300/50" },
-  { bg: "from-cyan-400 to-teal-500", ring: "ring-cyan-300", glow: "shadow-cyan-300/50" },
+  { bg: "from-pink-400 to-rose-500", ring: "ring-pink-300" },
+  { bg: "from-sky-400 to-blue-500", ring: "ring-sky-300" },
+  { bg: "from-emerald-400 to-teal-500", ring: "ring-emerald-300" },
+  { bg: "from-amber-400 to-orange-500", ring: "ring-amber-300" },
+  { bg: "from-violet-400 to-purple-500", ring: "ring-violet-300" },
+  { bg: "from-cyan-400 to-teal-500", ring: "ring-cyan-300" },
 ]
 
 export default function MathMode({ level, onComplete, onExit }: MathModeProps) {
@@ -350,26 +350,13 @@ export default function MathMode({ level, onComplete, onExit }: MathModeProps) {
                   whileTap={!showResult ? { scale: 0.94 } : {}}
                   onClick={() => handleAnswer(opt)}
                   disabled={showResult}
-                  className="relative aspect-square rounded-full bg-gradient-to-br shadow-lg ring-2 transition-all"
-                  style={{
-                    // Compact bubble: max 96px wide, lebih kecil dari sebelumnya
-                    maxWidth: "96px",
-                    maxHeight: "96px",
-                    margin: "0 auto",
-                    width: "100%",
-                    height: "auto",
-                    aspectRatio: "1 / 1",
-                  }}
-                  data-bubble-gradient={color.bg}
-                  data-bubble-ring={color.ring}
-                  data-bubble-glow={color.glow}
+                  className={`relative aspect-square w-full rounded-full bg-gradient-to-br ${color.bg} shadow-[0_4px_12px_rgba(0,0,0,0.15)] ring-2 ${color.ring} transition-all`}
+                  style={{ maxWidth: "96px", margin: "0 auto" }}
                 >
-                  {/* Apply color via inline class because Tailwind needs static class names */}
-                  <span className={`absolute inset-0 rounded-full bg-gradient-to-br ${color.bg} ring-4 ${color.ring} shadow-[0_4px_12px_rgba(0,0,0,0.15)]`} />
-                  {/* Bubble shine effect - smaller */}
+                  {/* Bubble shine */}
                   <div className="absolute left-[18%] top-[15%] h-3 w-3 rounded-full bg-white/50 blur-[1px]" />
 
-                  {/* Number - MUCH BIGGER */}
+                  {/* Number */}
                   <span className="relative z-10 flex h-full w-full items-center justify-center text-4xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] sm:text-5xl">
                     {opt}
                   </span>

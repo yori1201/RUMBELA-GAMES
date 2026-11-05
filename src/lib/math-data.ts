@@ -1,5 +1,5 @@
 // ============================================================
-// Rumbela Math Quest - Data Soal Berhitung
+// RUMBELA GAMES - Math Adventure Data Soal Berhitung
 // 3 Level: TK/PAUD, SD, SMP
 // Tipe soal:
 //   - "number-recognition": Dengar angka → klik bubble yang benar

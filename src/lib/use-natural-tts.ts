@@ -123,10 +123,9 @@ export function useNaturalTTS() {
         u.pitch = pitch
         u.volume = volume
 
-        // Pick natural voice
         const langCode = u.lang
         let voice = pickNaturalVoiceForLang(langCode)
-        // If not found, try without region code (e.g. "en" instead of "en-US")
+        // Try without region suffix if no match (e.g. "en" instead of "en-US")
         if (!voice) voice = pickNaturalVoiceForLang(langCode.split("-")[0])
         if (voice) u.voice = voice
 
