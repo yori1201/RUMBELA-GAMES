@@ -13,11 +13,39 @@ import MathMode from "@/components/game/MathMode"
 import ResultScreen from "@/components/game/ResultScreen"
 import AccessGate, { checkExistingAccess, clearAccess } from "@/components/game/AccessGate"
 import AdminPanel from "@/components/game/AdminPanel"
+import OnboardingScreen from "@/components/game/OnboardingScreen"
 import type { Achievement, CategoryId, Difficulty, Mission } from "@/lib/game-data"
 import type { MathLevel } from "@/lib/math-data"
+import type { EducationStage } from "@/lib/curriculum-data"
 import { useGameStore } from "@/lib/game-store"
+import { soundManager } from "@/lib/sound"
 
-type Screen = "access" | "home" | "playing" | "playing-math" | "result" | "admin"
+type Screen = "access" | "onboarding" | "home" | "playing" | "playing-math" | "result" | "admin"
+
+// PRD Section 5.2: profile persisted per student
+interface StudentProfile {
+  displayName: string
+  educationStage: EducationStage
+  gradeCode: string
+  onboardedAt: string
+}
+
+const PROFILE_KEY = "rumbela-student-profile"
+
+function loadStudentProfile(): StudentProfile | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY)
+    return raw ? (JSON.parse(raw) as StudentProfile) : null
+  } catch {
+    return null
+  }
+}
+
+function saveStudentProfile(profile: StudentProfile) {
+  if (typeof window === "undefined") return
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+}
 
 interface GameConfig {
   category: CategoryId
@@ -47,7 +75,10 @@ interface ResultMeta {
 function getInitialScreen(isAdmin: boolean): Screen {
   if (typeof window === "undefined") return "access"
   if (isAdmin) return "admin"
-  return checkExistingAccess() ? "home" : "access"
+  if (!checkExistingAccess()) return "access"
+  // PRD Section 5.2: if access valid but profile not yet completed, show onboarding
+  if (!loadStudentProfile()) return "onboarding"
+  return "home"
 }
 
 // HomeContent uses useSearchParams() which requires a Suspense boundary
@@ -80,6 +111,31 @@ function HomeContent() {
     (deviceToken: string, deviceName: string) => {
       // Set player name from access gate
       setPlayerName(deviceName)
+      // PRD Section 5.2: route to onboarding if profile not yet completed
+      if (!loadStudentProfile()) {
+        setScreen("onboarding")
+      } else {
+        setScreen("home")
+      }
+    },
+    [setPlayerName]
+  )
+
+  const handleOnboardingComplete = useCallback(
+    (profile: {
+      displayName: string
+      educationStage: EducationStage
+      gradeCode: string
+    }) => {
+      const fullProfile: StudentProfile = {
+        ...profile,
+        onboardedAt: new Date().toISOString(),
+      }
+      saveStudentProfile(fullProfile)
+      setPlayerName(profile.displayName)
+      soundManager.play("select")
+      // PRD: confetti to celebrate onboarding completion
+      setConfettiTrigger((t) => t + 1)
       setScreen("home")
     },
     [setPlayerName]
@@ -211,6 +267,20 @@ function HomeContent() {
 
       {screen === "access" && (
         <AccessGate onAccessGranted={handleAccessGranted} />
+      )}
+
+      {screen === "onboarding" && (
+        <>
+          <AnimatedBackground />
+          <OnboardingScreen
+            defaultName={playerName}
+            onComplete={handleOnboardingComplete}
+            onCancel={() => {
+              clearAccess()
+              setScreen("access")
+            }}
+          />
+        </>
       )}
 
       {screen === "admin" && (

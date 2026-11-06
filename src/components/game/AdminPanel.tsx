@@ -28,7 +28,9 @@ interface AccessCode {
   note: string | null
 }
 
-const DEFAULT_ADMIN_PASSWORD = "rumbela-admin-2026"
+// SECURITY: Default admin password removed from client bundle.
+// Server (/api/admin/codes) validates via process.env.ADMIN_PASSWORD with no default fallback.
+// If ADMIN_PASSWORD env var is not set, server returns 503 Service Unavailable.
 
 export default function AdminPanel({ onExit }: { onExit: () => void }) {
   const [adminPassword, setAdminPassword] = useState("")
@@ -511,4 +513,3 @@ export default function AdminPanel({ onExit }: { onExit: () => void }) {
   )
 }
 
-export { DEFAULT_ADMIN_PASSWORD }

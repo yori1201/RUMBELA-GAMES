@@ -14,10 +14,13 @@ import {
   isKVConfigured,
 } from "@/lib/access-store"
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "rumbela-admin-2026"
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
 
-// Verify admin password from header
+// Verify admin password from header.
+// SECURITY: no default fallback. If ADMIN_PASSWORD env var is not set,
+// all admin endpoints return 503 Service Unavailable.
 function verifyAdmin(request: NextRequest): boolean {
+  if (!ADMIN_PASSWORD) return false
   const auth = request.headers.get("x-admin-password")
   if (!auth) return false
   // Constant-time comparison (basic)
@@ -27,6 +30,11 @@ function verifyAdmin(request: NextRequest): boolean {
     diff |= auth.charCodeAt(i) ^ ADMIN_PASSWORD.charCodeAt(i)
   }
   return diff === 0
+}
+
+// Helper: check if admin feature is configured at all
+function isAdminConfigured(): boolean {
+  return !!ADMIN_PASSWORD
 }
 
 // POST: generate codes

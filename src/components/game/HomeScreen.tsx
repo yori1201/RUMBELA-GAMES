@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { Trophy, Volume2, VolumeX, Sparkles, BookOpen, Award, RotateCcw, Flame, Target, Star, TrendingUp } from "lucide-react"
 import { CATEGORIES, DIFFICULTIES, ACHIEVEMENTS, type CategoryId, type Difficulty } from "@/lib/game-data"
 import { MATH_LEVELS, type MathLevel } from "@/lib/math-data"
+import { SUBJECTS, type SubjectCode } from "@/lib/curriculum-data"
 import { useGameStore } from "@/lib/game-store"
 import { soundManager } from "@/lib/sound"
 import { preloadVoices } from "@/lib/use-natural-tts"
@@ -239,13 +240,104 @@ export default function HomeScreen({ onStart, onStartMath }: HomeScreenProps) {
       </motion.section>
 
       <div className="mx-auto max-w-5xl space-y-5">
+        {/* SUBJECT DASHBOARD — PRD Section 5.3: 3 kartu mata pelajaran */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black uppercase tracking-wide text-slate-800">
+              Pilih Mata Pelajaran
+            </h2>
+            {stats.totalGamesPlayed > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  soundManager.play("click")
+                  // TODO Phase 2: route to learning path / competency map
+                  alert("Peta kompetensi akan tersedia di Phase 2")
+                }}
+                className="text-xs text-emerald-600 hover:text-emerald-700"
+              >
+                Lihat peta belajar →
+              </Button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {SUBJECTS.map((subject) => {
+              const isEnabled = subject.enabled
+              return (
+                <motion.button
+                  key={subject.code}
+                  whileHover={isEnabled ? { scale: 1.02, y: -2 } : {}}
+                  whileTap={isEnabled ? { scale: 0.98 } : {}}
+                  onClick={() => {
+                    if (!isEnabled) {
+                      soundManager.play("click")
+                      return
+                    }
+                    soundManager.play("select")
+                    if (subject.code === "MATH") {
+                      // Scroll to Math Adventure section below
+                      document
+                        .getElementById("math-adventure-section")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    } else if (subject.code === "ENGLISH") {
+                      // Scroll to classic English game modes
+                      document
+                        .getElementById("english-modes-section")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }
+                  }}
+                  disabled={!isEnabled}
+                  className={`relative overflow-hidden rounded-3xl p-5 text-left shadow-lg ring-2 transition-all ${
+                    isEnabled
+                      ? `bg-gradient-to-br ${subject.gradient} ring-white/40 hover:ring-white`
+                      : "bg-gradient-to-br from-slate-200 to-slate-300 ring-slate-200 cursor-not-allowed"
+                  }`}
+                >
+                  <div className="text-4xl">{subject.emoji}</div>
+                  <h3
+                    className={`mt-2 text-xl font-black drop-shadow ${
+                      isEnabled ? "text-white" : "text-slate-500"
+                    }`}
+                  >
+                    {subject.name}
+                  </h3>
+                  <p
+                    className={`mt-1 text-xs ${
+                      isEnabled ? "text-white/90" : "text-slate-500"
+                    }`}
+                  >
+                    {subject.description}
+                  </p>
+                  {!isEnabled && subject.comingSoonLabel && (
+                    <span className="mt-2 inline-block rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                      {subject.comingSoonLabel}
+                    </span>
+                  )}
+                  {isEnabled && (
+                    <div className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-white/90">
+                      Main sekarang →
+                    </div>
+                  )}
+                </motion.button>
+              )
+            })}
+          </div>
+        </motion.section>
+
         {/* MATH ADVENTURE - Game Berhitung */}
-        {onStartMath && (
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#ff4b6e] via-[#ff8c42] to-[#ffc93c] p-5 shadow-xl sm:p-6"
-          >
+        <div id="math-adventure-section">
+          {onStartMath && (
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#ff4b6e] via-[#ff8c42] to-[#ffc93c] p-5 shadow-xl sm:p-6"
+            >
             <div className="absolute right-2 top-2 opacity-30 sm:right-4 sm:top-4">
               <motion.div
                 animate={{ y: [0, -8, 0], rotate: [0, 5, -5, 0] }}
@@ -319,13 +411,16 @@ export default function HomeScreen({ onStart, onStartMath }: HomeScreenProps) {
             </motion.div>
           </motion.section>
         )}
+        </div>
 
-        {/* Step 1: Player Name (collapsed greeting if already set) */}
-        <section className="space-y-2">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-white">1</span>
-            {hasSavedName && !isEditingName ? "Pemain" : "Siapa namamu?"}
-          </h3>
+        {/* ENGLISH MODES SECTION (target for Subject Dashboard "English" click) */}
+        <div id="english-modes-section">
+          {/* Step 1: Player Name (collapsed greeting if already set) */}
+          <section className="space-y-2">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-700">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-white">1</span>
+              {hasSavedName && !isEditingName ? "Pemain" : "Siapa namamu?"}
+            </h3>
           {hasSavedName && !isEditingName ? (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
@@ -519,6 +614,7 @@ export default function HomeScreen({ onStart, onStartMath }: HomeScreenProps) {
             </Button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Stats & Leaderboard Section (only if has progress) */}

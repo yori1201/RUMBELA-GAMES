@@ -1,32 +1,326 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// ============================================================
+// RUMBELA GAMES — Adaptive Learning Platform Schema
+// Phase 1 implementation per PRD v1 Section 11
+//
+// Database provider: SQLite untuk dev, PostgreSQL untuk production
+// (provider di-set via env DATABASE_URL scheme - prisma auto-detect)
+//
+// Migration strategy:
+// - Phase 1: Student profile + onboarding (this file)
+// - Phase 2: Subject/Competency/Level/Question models
+// - Phase 3: GameSession/AnswerAttempt/MasteryEvent
+// - Phase 4+: Integration with existing game modes
+// ============================================================
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
+  // Untuk dev: file:./db/custom.db (SQLite)
+  // Untuk production: postgresql://... (PostgreSQL managed)
+  // Prisma mendeteksi provider dari URL scheme:
+  //   file:... = sqlite
+  //   postgresql://... = postgresql
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ============================================================
+// IDENTITY & PROFILE (Phase 1)
+// ============================================================
+
+/// Siswa yang sudah menyelesaikan onboarding.
+/// Satu access code = satu student profile.
+model Student {
+  id                String   @id @default(cuid())
+  accessIdentityId  String   @unique
+  displayName       String
+  avatarKey         String?
+
+  // PRD Section 5.2: jenjang & kelas
+  // PAUD | TK | SD | SMP | SMA
+  educationStage    String
+  // TK_A | TK_B | SD_1..SD_6 | SMP_7..SMP_9 | SMA_10..SMA_12
+  // Lihat src/lib/curriculum-data.ts untuk valid values
+  gradeCode         String
+
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  accessIdentity    AccessIdentity @relation(fields: [accessIdentityId], references: [id])
+
+  @@index([educationStage, gradeCode])
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+/// Identitas akses berbasis kode (mempertahankan mekanisme existing).
+/// Hash disimpan, bukan plaintext. Device binding opsional.
+model AccessIdentity {
+  id              String    @id @default(cuid())
+  accessCodeHash  String    @unique
+  status          String    @default("ACTIVE") // ACTIVE | REVOKED | EXPIRED
+  deviceBinding   String?
+  note            String?
+  lastUsedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  revokedAt       DateTime?
+
+  student         Student?
+
+  @@index([status])
 }
+
+// ============================================================
+// CURRICULUM & CONTENT (Phase 2 — stub untuk design readiness)
+//
+// Model di bawah ini akan diaktifkan di Phase 2.
+// Didefinisikan di sini sebagai komentar untuk dokumentasi design.
+// ============================================================
+
+// model Subject {
+//   id          String  @id @default(cuid())
+//   code        String  @unique // MATH | ENGLISH | LOGIC
+//   name        String
+//   description String?
+//   iconKey     String
+//   isActive    Boolean @default(true)
+//   sortOrder   Int     @default(0)
+//   gradeBands  GradeBand[]
+//   domains     Domain[]
+//   questions   Question[]
+// }
+
+// model GradeBand {
+//   id          String  @id @default(cuid())
+//   subjectId   String
+//   stage       String  // PAUD | TK | SD | SMP | SMA
+//   gradeCode   String  // TK_A | SD_1 | ...
+//   displayName String
+//   sortOrder   Int     @default(0)
+//   isActive    Boolean @default(true)
+//   subject     Subject @relation(fields: [subjectId], references: [id])
+//   domains     Domain[]
+// }
+
+// model Domain {
+//   id          String  @id @default(cuid())
+//   subjectId   String
+//   gradeBandId String
+//   name        String
+//   description String?
+//   sortOrder   Int     @default(0)
+//   subject     Subject       @relation(fields: [subjectId], references: [id])
+//   gradeBand   GradeBand     @relation(fields: [gradeBandId], references: [id])
+//   competencies Competency[]
+// }
+
+// model Competency {
+//   id                String  @id @default(cuid())
+//   domainId          String
+//   code              String  @unique
+//   name              String
+//   description       String?
+//   learningObjective String?
+//   sortOrder         Int     @default(0)
+//   isActive          Boolean @default(true)
+//   domain            Domain    @relation(fields: [domainId], references: [id])
+//   prerequisites     CompetencyPrerequisite[] @relation("CompetencyPrerequisites")
+//   requiredBy        CompetencyPrerequisite[] @relation("PrerequisiteFor")
+//   levels            GameLevel[]
+// }
+
+// model CompetencyPrerequisite {
+//   id                      String @id @default(cuid())
+//   competencyId            String
+//   prerequisiteCompetencyId String
+//   competency              Competency @relation("CompetencyPrerequisites", fields: [competencyId], references: [id])
+//   prerequisite            Competency @relation("PrerequisiteFor", fields: [prerequisiteCompetencyId], references: [id])
+// }
+
+// model GameLevel {
+//   id                   String  @id @default(cuid())
+//   competencyId         String
+//   levelNumber          Int
+//   title                String
+//   description          String?
+//   difficulty           Int     @default(1) // 1-5
+//   masteryThreshold    Float   @default(80.0)
+//   minimumScoredQuestions Int   @default(8)
+//   isPublished          Boolean @default(false)
+//   version              Int     @default(1)
+//   competency           Competency @relation(fields: [competencyId], references: [id])
+//   questions            Question[]
+// }
+
+// model Question {
+//   id               String  @id @default(cuid())
+//   subjectId        String
+//   gradeBandId      String?
+//   competencyId     String?
+//   levelId          String?
+//   questionType     String  // multiple-choice | word-match | fill-blank | spell | count-objects | ...
+//   prompt           String
+//   promptTranslation String?
+//   media            String? // JSON-encoded media refs
+//   options          String? // JSON-encoded array
+//   acceptedAnswers  String? // JSON-encoded array (for spell)
+//   correctAnswer    String  // JSON-encoded (index for MC, string for spell, etc)
+//   explanation       String?
+//   hintData         String? // JSON-encoded
+//   difficulty       Int     @default(1)
+//   misconceptionTags String? // JSON-encoded array
+//   status           String  @default("DRAFT") // DRAFT | IN_REVIEW | APPROVED | PUBLISHED | ARCHIVED
+//   version          Int     @default(1)
+//   createdAt        DateTime @default(now())
+//   updatedAt        DateTime @updatedAt
+// }
+
+// ============================================================
+// LEARNING PROGRESS (Phase 3 — stub untuk design readiness)
+// ============================================================
+
+// model LearningPath {
+//   id          String   @id @default(cuid())
+//   studentId   String
+//   subjectId   String
+//   gradeBandId String?
+//   status      String   @default("ACTIVE") // ACTIVE | COMPLETED | ARCHIVED
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+// }
+
+// model StudentCompetencyProgress {
+//   id                String   @id @default(cuid())
+//   studentId         String
+//   competencyId      String
+//   masteryScore      Float    @default(0)
+//   status            String   @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | NEEDS_PRACTICE | MASTERED
+//   attemptCount      Int      @default(0)
+//   lastPracticedAt   DateTime?
+//   masteredAt        DateTime?
+//   updatedAt         DateTime @updatedAt
+//   @@unique([studentId, competencyId])
+// }
+
+// model StudentLevelProgress {
+//   id                String   @id @default(cuid())
+//   studentId         String
+//   levelId           String
+//   status            String   @default("LOCKED") // LOCKED | AVAILABLE | IN_PROGRESS | MASTERED
+//   bestAccuracy      Float    @default(0)
+//   bestMasteryScore  Float    @default(0)
+//   completedAt       DateTime?
+//   unlockedAt        DateTime?
+//   updatedAt         DateTime @updatedAt
+//   @@unique([studentId, levelId])
+// }
+
+// model GameSession {
+//   id              String   @id @default(cuid())
+//   studentId       String
+//   subjectId       String
+//   competencyId    String?
+//   levelId         String?
+//   gameMode        String
+//   status          String   @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED | ABANDONED | INVALIDATED
+//   startedAt       DateTime @default(now())
+//   completedAt     DateTime?
+//   questionCount   Int      @default(0)
+//   correctCount    Int      @default(0)
+//   score           Int      @default(0)
+//   xpEarned        Int      @default(0)
+//   adaptiveDecision String? // JSON
+//   adaptiveReason  String?
+//   engineVersion   String?
+//   contentVersion  String?
+// }
+
+// model AnswerAttempt {
+//   id              String   @id @default(cuid())
+//   sessionId       String
+//   questionId      String
+//   answerPayload   String   // JSON
+//   isCorrect       Boolean
+//   responseTimeMs  Int?
+//   hintUsed        Boolean  @default(false)
+//   attemptNumber   Int
+//   submittedAt     DateTime @default(now())
+//   scoringMetadata String? // JSON
+// }
+
+// model MasteryEvent {
+//   id            String   @id @default(cuid())
+//   studentId     String
+//   competencyId  String
+//   sessionId     String?
+//   previousScore Float
+//   newScore      Float
+//   eventType     String // SESSION_COMPLETED | LEVEL_MASTERED | REMEDIATION | MANUAL_OVERRIDE
+//   reason        String?
+//   createdAt     DateTime @default(now())
+// }
+
+// ============================================================
+// GAMIFICATION (Phase 3)
+// ============================================================
+
+// model StudentReward {
+//   id         String   @id @default(cuid())
+//   studentId  String
+//   rewardCode String
+//   metadata   String?  // JSON
+//   earnedAt   DateTime @default(now())
+//   @@unique([studentId, rewardCode])
+// }
+
+// model StudentXPEvent {
+//   id         String   @id @default(cuid())
+//   studentId  String
+//   sourceType String   // SESSION | LEVEL_MASTERY | ACHIEVEMENT | STREAK
+//   sourceId   String
+//   xpAmount   Int
+//   createdAt  DateTime @default(now())
+//   @@unique([sourceType, sourceId]) // idempotency: XP tidak boleh double untuk source yang sama
+// }
+
+// ============================================================
+// TUTOR & ADMIN (Phase 6)
+// ============================================================
+
+// model Tutor {
+//   id            String  @id @default(cuid())
+//   name          String
+//   email         String  @unique
+//   authProviderId String?
+//   status        String  @default("ACTIVE")
+// }
+
+// model TutorStudent {
+//   id        String   @id @default(cuid())
+//   tutorId   String
+//   studentId String
+//   assignedAt DateTime @default(now())
+//   @@unique([tutorId, studentId])
+// }
+
+// model AdminUser {
+//   id            String  @id @default(cuid())
+//   email         String  @unique
+//   authProviderId String?
+//   role          String  @default("ADMIN")
+//   status        String  @default("ACTIVE")
+// }
+
+// model AuditLog {
+//   id         String   @id @default(cuid())
+//   actorId    String
+//   actorRole  String
+//   action     String
+//   entityType String
+//   entityId   String
+//   beforeData String? // JSON
+//   afterData  String? // JSON
+//   reason     String?
+//   createdAt  DateTime @default(now())
+// }
