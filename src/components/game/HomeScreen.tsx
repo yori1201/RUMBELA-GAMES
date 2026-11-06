@@ -35,6 +35,7 @@ interface HomeScreenProps {
     mode: GameMode
   }) => void
   onStartMath?: (level: MathLevel) => void
+  onStartMathViaMap?: () => void
 }
 
 export type GameMode = "quiz" | "match" | "fill-blank" | "spell"
@@ -81,7 +82,7 @@ const GAME_MODES: {
   },
 ]
 
-export default function HomeScreen({ onStart, onStartMath }: HomeScreenProps) {
+export default function HomeScreen({ onStart, onStartMath, onStartMathViaMap }: HomeScreenProps) {
   const { playerName, setPlayerName, stats, leaderboard, unlockedAchievements, resetProgress } = useGameStore()
   const [name, setName] = useState(playerName)
   const [isEditingName, setIsEditingName] = useState(false)
@@ -281,10 +282,8 @@ export default function HomeScreen({ onStart, onStartMath }: HomeScreenProps) {
                     }
                     soundManager.play("select")
                     if (subject.code === "MATH") {
-                      // Scroll to Math Adventure section below
-                      document
-                        .getElementById("math-adventure-section")
-                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                      // Open Level Path Map for Math
+                      onStartMathViaMap?.()
                     } else if (subject.code === "ENGLISH") {
                       // Scroll to classic English game modes
                       document

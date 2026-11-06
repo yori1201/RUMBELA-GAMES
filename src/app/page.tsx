@@ -14,13 +14,14 @@ import ResultScreen from "@/components/game/ResultScreen"
 import AccessGate, { checkExistingAccess, clearAccess } from "@/components/game/AccessGate"
 import AdminPanel from "@/components/game/AdminPanel"
 import OnboardingScreen from "@/components/game/OnboardingScreen"
+import LevelPathMap from "@/components/game/LevelPathMap"
 import type { Achievement, CategoryId, Difficulty, Mission } from "@/lib/game-data"
 import type { MathLevel } from "@/lib/math-data"
 import type { EducationStage } from "@/lib/curriculum-data"
 import { useGameStore } from "@/lib/game-store"
 import { soundManager } from "@/lib/sound"
 
-type Screen = "access" | "onboarding" | "home" | "playing" | "playing-math" | "result" | "admin"
+type Screen = "access" | "onboarding" | "home" | "level-map" | "playing" | "playing-math" | "result" | "admin"
 
 // PRD Section 5.2: profile persisted per student
 interface StudentProfile {
@@ -287,7 +288,27 @@ function HomeContent() {
         <AdminPanel onExit={handleExitAdmin} />
       )}
 
-      {screen === "home" && <HomeScreen onStart={handleStart} onStartMath={handleStartMath} />}
+      {screen === "home" && (
+        <HomeScreen
+          onStart={handleStart}
+          onStartMath={handleStartMath}
+          onStartMathViaMap={() => {
+            soundManager.play("click")
+            setScreen("level-map")
+          }}
+        />
+      )}
+
+      {screen === "level-map" && (
+        <LevelPathMap
+          unlockedLevels={["tk", "sd"]}
+          completedLevels={[]}
+          onSelectLevel={(level) => {
+            handleStartMath(level)
+          }}
+          onBack={() => setScreen("home")}
+        />
+      )}
 
       {screen === "playing" && config && (
         <>
